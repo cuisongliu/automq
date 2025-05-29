@@ -17,22 +17,10 @@
  * limitations under the License.
  */
 
-package kafka.log.stream.s3.node;
+package kafka.automq.zerozone;
 
-import org.apache.kafka.controller.stream.NodeMetadata;
+import kafka.automq.interceptor.ProduceRequestArgs;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
-
-public interface NodeManager {
-
-    CompletableFuture<Void> update(Function<NodeMetadata, Optional<NodeMetadata>> updater);
-
-    default CompletableFuture<Void> updateWal(String walConfig) {
-        return update(nodeMetadata -> Optional.of(new NodeMetadata(nodeMetadata.getNodeId(), nodeMetadata.getNodeEpoch(), walConfig, nodeMetadata.getTags())));
-    }
-
-    CompletableFuture<NodeMetadata> getNodeMetadata();
-
+public interface RouterInProduceHandler {
+    void handleProduceAppend(ProduceRequestArgs args);
 }
