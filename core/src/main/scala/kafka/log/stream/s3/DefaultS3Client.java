@@ -137,8 +137,9 @@ public class DefaultS3Client implements Client {
         S3StreamMetricsManager.registerNetworkAvailableBandwidthSupplier(AsyncNetworkBandwidthLimiter.Type.INBOUND, () ->
             config.networkBaselineBandwidth() - (long) networkInboundRate.derive(
                 TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()), NetworkStats.getInstance().networkInboundUsageTotal().get()));
+        // Use a larger token pool for outbound traffic to avoid spikes caused by Upload WAL affecting tail-reading performance.
         GlobalNetworkBandwidthLimiters.instance().setup(AsyncNetworkBandwidthLimiter.Type.OUTBOUND,
-            refillToken, config.refillPeriodMs(), config.networkBaselineBandwidth());
+            refillToken, config.refillPeriodMs(), config.networkBaselineBandwidth() * 5);
         networkOutboundLimiter = GlobalNetworkBandwidthLimiters.instance().get(AsyncNetworkBandwidthLimiter.Type.OUTBOUND);
         S3StreamMetricsManager.registerNetworkAvailableBandwidthSupplier(AsyncNetworkBandwidthLimiter.Type.OUTBOUND, () ->
             config.networkBaselineBandwidth() - (long) networkOutboundRate.derive(
@@ -217,16 +218,24 @@ public class DefaultS3Client implements Client {
     protected ObjectStorage newMainObjectStorage() {
         return ObjectStorageFactory.instance().builder()
             .buckets(config.dataBuckets())
+            .tagging(config.objectTagging())
             .extension(EXTENSION_TYPE_KEY, EXTENSION_TYPE_MAIN)
             .readWriteIsolate(true)
+            .inboundLimiter(networkInboundLimiter)
+            .outboundLimiter(networkOutboundLimiter)
+            .threadPrefix("main")
             .build();
     }
 
     protected ObjectStorage newBackgroundObjectStorage() {
         return ObjectStorageFactory.instance().builder()
             .buckets(config.dataBuckets())
+            .tagging(config.objectTagging())
             .extension(EXTENSION_TYPE_KEY, EXTENSION_TYPE_BACKGROUND)
             .readWriteIsolate(false)
+            .inboundLimiter(networkInboundLimiter)
+            .outboundLimiter(networkOutboundLimiter)
+            .threadPrefix("background")
             .build();
     }
 
