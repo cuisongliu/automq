@@ -150,6 +150,10 @@ allprojects {
   }
 
   configurations.all {
+    // Globally exclude commons-logging and logback to ensure a single logging implementation (reload4j)
+    exclude group: "commons-logging", module: "commons-logging"
+    exclude group: "ch.qos.logback", module: "logback-classic"
+    exclude group: "ch.qos.logback", module: "logback-core"
     // zinc is the Scala incremental compiler, it has a configuration for its own dependencies
     // that are unrelated to the project dependencies, we should not change them
     if (name != "zinc") {
@@ -968,6 +972,8 @@ project(':core') {
     implementation libs.guava
     implementation libs.slf4jBridge
     implementation libs.slf4jReload4j
+    // The `jcl-over-slf4j` library is used to redirect JCL logging to SLF4J.
+    implementation libs.jclOverSlf4j
 
     implementation libs.opentelemetryJava8
     implementation libs.opentelemetryOshi
@@ -1003,6 +1009,33 @@ project(':core') {
     implementation (libs.kafkaAvroSerializer) {
       exclude group: 'org.apache.kafka', module: 'kafka-clients'
     }
+
+    // > hive ext start
+    implementation 'org.apache.iceberg:iceberg-hive-metastore:1.6.1'
+    implementation('org.apache.hive:hive-metastore:3.1.3') {
+      // Remove useless dependencies (copy from iceberg-kafka-connect)
+      exclude group: "org.apache.avro", module: "avro"
+      exclude group: "org.slf4j", module: "slf4j-log4j12"
+      exclude group: "org.pentaho" // missing dependency
+      exclude group: "org.apache.hbase"
+      exclude group: "org.apache.logging.log4j"
+      exclude group: "co.cask.tephra"
+      exclude group: "com.google.code.findbugs", module: "jsr305"
+      exclude group: "org.eclipse.jetty.aggregate", module: "jetty-all"
+      exclude group: "org.eclipse.jetty.orbit", module: "javax.servlet"
+      exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
+      exclude group: "com.tdunning", module: "json"
+      exclude group: "javax.transaction", module: "transaction-api"
+      exclude group: "com.zaxxer", module: "HikariCP"
+      exclude group: "org.apache.hadoop", module: "hadoop-yarn-server-common"
+      exclude group: "org.apache.hadoop", module: "hadoop-yarn-server-applicationhistoryservice"
+      exclude group: "org.apache.hadoop", module: "hadoop-yarn-server-resourcemanager"
+      exclude group: "org.apache.hadoop", module: "hadoop-yarn-server-web-proxy"
+      exclude group: "org.apache.hive", module: "hive-service-rpc"
+      exclude group: "com.github.joshelser", module: "dropwizard-metrics-hadoop-metrics2-reporter"
+    }
+    implementation 'org.apache.hadoop:hadoop-mapreduce-client-core:3.4.1'
+    // > hive ext end
 
     // > Protobuf ext start
     //   Wire Runtime for schema handling
@@ -2275,6 +2308,9 @@ project(':tools') {
       exclude group: 'org.apache.kafka', module: 'kafka-clients'
     }
     implementation libs.bucket4j
+    implementation (libs.oshi){
+      exclude group: 'org.slf4j', module: '*'
+    }
     // AutoMQ inject end
 
     implementation project(':storage')
